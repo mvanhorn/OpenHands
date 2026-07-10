@@ -47,6 +47,7 @@ from openhands.app_server.utils.dependencies import get_dependencies
 from openhands.app_server.utils.llm import (
     get_provider_api_base,
     is_openhands_model,
+    normalize_custom_model_provider,
     resolve_llm_base_url,
 )
 from openhands.app_server.utils.logger import openhands_logger as logger
@@ -102,13 +103,14 @@ router = APIRouter(
 def _post_merge_llm_fixups(settings: Settings) -> None:
     """Apply LLM-specific fixups after merging settings.
 
-    Delegates the empty-string → cleared and provider-default inference
-    rules to :func:`openhands.app_server.utils.llm.resolve_llm_base_url` so the
-    personal-save and enterprise org-defaults paths stay in lockstep.
+    Normalizes custom-endpoint model providers before delegating the
+    empty-string → cleared and provider-default inference rules to
+    :func:`openhands.app_server.utils.llm.resolve_llm_base_url`.
     """
     if not isinstance(settings.agent_settings, OpenHandsAgentSettings):
         return
     llm = settings.agent_settings.llm
+    llm.model = normalize_custom_model_provider(llm.model, llm.base_url)
     llm.base_url = resolve_llm_base_url(
         model=llm.model,
         base_url=llm.base_url,

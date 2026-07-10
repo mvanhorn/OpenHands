@@ -1,11 +1,16 @@
 """Tests for openhands.app_server.utils.llm module."""
 
+from unittest.mock import Mock
+
+import pytest
+
 from openhands.app_server.utils import llm as llm_utils
 from openhands.app_server.utils.llm import (
     _assign_provider,
     _derive_verified_models,
     get_provider_api_base,
     is_openhands_model,
+    normalize_custom_model_provider,
 )
 
 
@@ -107,6 +112,69 @@ class TestAssignProvider:
         monkeypatch.setattr(llm_utils, 'get_llm_provider', _boom)
 
         assert _assign_provider('whatever') == 'whatever'
+
+
+class TestNormalizeCustomModelProvider:
+    """Tests for the normalize_custom_model_provider helper."""
+
+    @pytest.mark.parametrize(
+        'model',
+        [
+            'lmstudio-community/gemma-4-e4b-it-mlx',
+            'qwen/qwen3-coder-30b-a3b-instruct',
+        ],
+    )
+    def test_unknown_namespace_uses_openai_compatibility_provider(self, model):
+        assert (
+            normalize_custom_model_provider(model, 'http://localhost:1234/v1')
+            == f'openai/{model}'
+        )
+
+    @pytest.mark.parametrize(
+        'model',
+        [
+            'openai/gpt-4',
+            'anthropic/claude-3-opus',
+            'litellm_proxy/gpt-4',
+            'openhands/claude-sonnet-4',
+        ],
+    )
+    def test_valid_provider_prefixes_remain_unchanged(self, model):
+        assert (
+            normalize_custom_model_provider(model, 'http://localhost:1234/v1') == model
+        )
+
+    def test_bare_model_gets_prefixed_once(self):
+        model = normalize_custom_model_provider(
+            'gemma-4-e4b-it-mlx', 'http://localhost:1234/v1'
+        )
+
+        assert model == 'openai/gemma-4-e4b-it-mlx'
+        assert (
+            normalize_custom_model_provider(model, 'http://localhost:1234/v1') == model
+        )
+
+    @pytest.mark.parametrize('base_url', [None, ''])
+    def test_model_without_custom_base_url_remains_unchanged(self, base_url):
+        model = 'lmstudio-community/gemma-4-e4b-it-mlx'
+
+        assert normalize_custom_model_provider(model, base_url) == model
+
+    def test_provider_lookup_exception_falls_back_to_openai(self, monkeypatch):
+        warning = Mock()
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError('litellm exploded')
+
+        monkeypatch.setattr(llm_utils, 'get_llm_provider', _boom)
+        monkeypatch.setattr(llm_utils.logger, 'warning', warning)
+
+        model = 'custom-provider/model'
+        assert (
+            normalize_custom_model_provider(model, 'http://localhost:1234/v1')
+            == f'openai/{model}'
+        )
+        warning.assert_called_once()
 
 
 class TestDeriveVerifiedModels:

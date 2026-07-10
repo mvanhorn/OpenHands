@@ -159,6 +159,36 @@ def resolve_llm_base_url(
         return None
 
 
+def normalize_custom_model_provider(
+    model: str | None, base_url: str | None
+) -> str | None:
+    """Ensure custom-endpoint models have a LiteLLM provider prefix.
+
+    OpenAI-compatible servers such as LM Studio accept namespaced model IDs,
+    but LiteLLM interprets the first path segment as a provider. If that
+    segment is not registered with LiteLLM, route the request through its
+    OpenAI-compatible provider while preserving the complete model ID.
+
+    Models without an explicitly configured base URL are left unchanged.
+    """
+    if not model or not base_url or is_openhands_model(model):
+        return model
+    if '/' not in model:
+        return f'openai/{model}'
+
+    try:
+        _, provider_name, _, _ = get_llm_provider(model)
+        if provider_name:
+            LlmProviders(provider_name)
+            return model
+    except Exception as e:
+        logger.warning(
+            f'Failed to resolve LiteLLM provider for custom model {model}: {e}'
+        )
+
+    return f'openai/{model}'
+
+
 def get_provider_api_base(model: str) -> str | None:
     """Get the API base URL for a model using litellm.
 

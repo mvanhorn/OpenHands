@@ -1,9 +1,9 @@
-# PR #16174 screenshots
+# PR #16175 screenshots
 
-Screenshot assets for OpenHands/OpenHands#16174 (bounded transcript export).
+Screenshot assets for OpenHands/OpenHands#16175 (desktop notifications).
 
 Kept on a separate branch so the PR diff stays limited to source changes.
 
-- `pr-16174/transcript-export-scope-modal.png` — the Export conversation modal
-  for a large conversation (25,000 events), showing the new "Amount to export"
-  fieldset with the partial/whole choice.
+- `pr-16175/desktop-notifications-setting.png` — the new Desktop Notifications
+  setting, shown enabled (permission granted) and disabled with the
+  unavailable note (permission denied).
